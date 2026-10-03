@@ -1,12 +1,14 @@
 package com.assignment.taskmanagement.service;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
 import com.assignment.taskmanagement.domain.Task;
 import com.assignment.taskmanagement.dto.request.CreateTaskRequest;
 import com.assignment.taskmanagement.dto.response.TaskResponse;
+import com.assignment.taskmanagement.exception.TaskNotFoundException;
 import com.assignment.taskmanagement.mapper.TaskMapper;
 import com.assignment.taskmanagement.repository.TaskRepository;
 
@@ -42,5 +44,13 @@ public class TaskService {
 	public List<TaskResponse> getAllTasks(){
 		return taskRepository.findAll()
 				.stream().map(mapper::toResponse).toList();
+	}
+	
+	public TaskResponse getTaskById(UUID id) {
+		return mapper.toResponse(getTask(id));
+	}
+	
+	private Task getTask(UUID id) {
+		return taskRepository.findById(id).orElseThrow(() -> new TaskNotFoundException("Task not found: "+id));
 	}
 }

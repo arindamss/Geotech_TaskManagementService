@@ -1,10 +1,12 @@
 package com.assignment.taskmanagement.controller;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,5 +40,10 @@ public class TaskController {
 	@GetMapping
 	public ResponseEntity<List<TaskResponse>> getAllTasks(){
 		return new ResponseEntity(taskService.getAllTasks(), HttpStatus.OK);
+	}
+	
+	@GetMapping("/{id}")
+	public ResponseEntity<TaskResponse> getTaskById(@PathVariable("id") UUID taskId){
+		return new ResponseEntity(taskService.getTaskById(taskId), HttpStatus.OK);
 	}
 }
