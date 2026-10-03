@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: task-management-service
+  profiles:
+    active:
+    - local
