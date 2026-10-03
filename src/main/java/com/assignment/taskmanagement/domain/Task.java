@@ -2,6 +2,7 @@ package com.assignment.taskmanagement.domain;
 
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -60,5 +61,15 @@ public class Task {
 	@PrePersist
 	protected void onCreate() {
 		createdAt = Instant.now();
+	}
+	
+	public List<Task> blockingTasks(){
+		return dependencies.stream()
+				.filter(d -> d.status != TaskStatus.DONE)
+				.toList();
+	}
+	
+	public boolean isBlocked() {
+		return !blockingTasks().isEmpty();
 	}
 }
