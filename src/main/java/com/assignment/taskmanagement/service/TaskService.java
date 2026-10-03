@@ -1,5 +1,7 @@
 package com.assignment.taskmanagement.service;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 import com.assignment.taskmanagement.domain.Task;
@@ -35,5 +37,10 @@ public class TaskService {
 		
 		log.info("Task created with Id: {}", task.getId());
 		return mapper.toResponse(savedTask);
+	}
+	
+	public List<TaskResponse> getAllTasks(){
+		return taskRepository.findAll()
+				.stream().map(mapper::toResponse).toList();
 	}
 }
