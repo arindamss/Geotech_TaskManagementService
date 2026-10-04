@@ -48,4 +48,9 @@ public class TaskExceptionHandler {
 	public ProblemDetail handleInvalidStatusTransitionException(InvalidStatusTransitionException ex) {
 		return ProblemDetail.forStatusAndDetail(ex.getHttpStatus(), ex.getMessage());
 	}
+	
+	@ExceptionHandler(InvalidDependencyException.class)
+	public ProblemDetail handleInvalidDependencyException(InvalidDependencyException ex) {
+		return ProblemDetail.forStatusAndDetail(ex.getHttpStatus(), ex.getMessage());
+	}
 }

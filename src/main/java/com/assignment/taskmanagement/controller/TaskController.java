@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.assignment.taskmanagement.dto.request.AddDependencyRequest;
 import com.assignment.taskmanagement.dto.request.CreateTaskRequest;
 import com.assignment.taskmanagement.dto.request.UpdateStatusRequest;
 import com.assignment.taskmanagement.dto.response.TaskResponse;
@@ -52,5 +53,10 @@ public class TaskController {
 	@PatchMapping("/{id}/status")
 	public ResponseEntity<TaskResponse> updateTaskStatus(@PathVariable("id") UUID taskId, @Valid @RequestBody UpdateStatusRequest request){
 		return new ResponseEntity(taskService.updateStatus(taskId, request.status()), HttpStatus.OK);
+	}
+	
+	@PostMapping("/{id}/dependencies")
+	public ResponseEntity<TaskResponse> addDependency(@PathVariable("id") UUID taskId, @Valid @RequestBody AddDependencyRequest request){
+		return new ResponseEntity(taskService.addDependency(taskId, request.dependencyId()), HttpStatus.OK);
 	}
 }

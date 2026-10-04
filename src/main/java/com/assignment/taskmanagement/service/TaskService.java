@@ -9,6 +9,7 @@ import com.assignment.taskmanagement.domain.Task;
 import com.assignment.taskmanagement.domain.TaskStatus;
 import com.assignment.taskmanagement.dto.request.CreateTaskRequest;
 import com.assignment.taskmanagement.dto.response.TaskResponse;
+import com.assignment.taskmanagement.exception.InvalidDependencyException;
 import com.assignment.taskmanagement.exception.InvalidStatusTransitionException;
 import com.assignment.taskmanagement.exception.TaskNotFoundException;
 import com.assignment.taskmanagement.mapper.TaskMapper;
@@ -23,10 +24,12 @@ public class TaskService {
 	
 	private final TaskMapper mapper;
 	private final TaskRepository taskRepository;
+	private final DependencyManagementService dependencyManagementService;
 	
-	public TaskService(TaskMapper mapper, TaskRepository repository) {
+	public TaskService(TaskMapper mapper, TaskRepository repository, DependencyManagementService dependencyManagementService) {
 		this.mapper = mapper;
 		this.taskRepository = repository;
+		this.dependencyManagementService = dependencyManagementService;
 	}
 	
 	
@@ -64,7 +67,7 @@ public class TaskService {
 			log.debug("Exception while task status updation: {}", id);
 			
 			List<UUID> blockers = task.blockingTasks().stream().map(Task::getId).toList();
-			throw new InvalidStatusTransitionException("Task %d cannot move to %s: blocked by unfinished tasks %s".formatted(id, newStatus, blockers));
+			throw new InvalidStatusTransitionException("Task %s cannot move to %s: blocked by unfinished tasks %s".formatted(id, newStatus, blockers));
 		}
 		
 		task.setStatus(newStatus);
@@ -73,6 +76,21 @@ public class TaskService {
 		return mapper.toResponse(task);
 	}
 	
+	
+	@Transactional
+	public TaskResponse addDependency(UUID takId, UUID dependencyId) {
+		Task task = getTask(takId);
+		
+		Task dependency = getTask(dependencyId);
+		
+		dependencyManagementService.validateDependency(task, dependency);
+		
+		task.getDependencies().add(dependency);
+		
+		Task savedTask = taskRepository.save(task);
+		
+		return mapper.toResponse(savedTask);
+	}
 	
 	private Task getTask(UUID id) {
 		return taskRepository.findById(id).orElseThrow(() -> new TaskNotFoundException("Task not found: "+id));
