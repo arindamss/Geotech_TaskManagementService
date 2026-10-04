@@ -88,6 +88,7 @@ public class TaskService {
 		task.getDependencies().add(dependency);
 		
 		Task savedTask = taskRepository.save(task);
+		log.debug("Dependency {} added to task {}", dependencyId, takId);
 		
 		return mapper.toResponse(savedTask);
 	}
