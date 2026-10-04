@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.assignment.taskmanagement.domain.Task;
 import com.assignment.taskmanagement.domain.TaskStatus;
 import com.assignment.taskmanagement.dto.request.CreateTaskRequest;
+import com.assignment.taskmanagement.dto.response.ExecutionOrderResponse;
 import com.assignment.taskmanagement.dto.response.TaskDependencyResponse;
 import com.assignment.taskmanagement.dto.response.TaskResponse;
 import com.assignment.taskmanagement.exception.InvalidDependencyException;
@@ -110,7 +111,14 @@ public class TaskService {
         taskRepository.save(task);
     }
 	
-	public boolean deleteDependency(Task task, UUID dependencyId) {
+	
+	public ExecutionOrderResponse executionOrder(){
+		List<Task> tasks = taskRepository.findAllWithDependencies();
+		return ExecutionOrderResolver.resolve(tasks);
+	}
+	
+	
+	private boolean deleteDependency(Task task, UUID dependencyId) {
         return task.getDependencies().removeIf(d -> d.getId().equals(dependencyId));
     }
 	

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.assignment.taskmanagement.dto.request.AddDependencyRequest;
 import com.assignment.taskmanagement.dto.request.CreateTaskRequest;
 import com.assignment.taskmanagement.dto.request.UpdateStatusRequest;
+import com.assignment.taskmanagement.dto.response.ExecutionOrderResponse;
 import com.assignment.taskmanagement.dto.response.TaskDependencyResponse;
 import com.assignment.taskmanagement.dto.response.TaskResponse;
 import com.assignment.taskmanagement.service.TaskService;
@@ -72,5 +73,10 @@ public class TaskController {
     public HeadersBuilder<?> removeDependency(@PathVariable UUID id, @PathVariable UUID dependsOnId) {
 		taskService.removeDependency(id, dependsOnId);
 		return ResponseEntity.noContent();
+    }
+	
+	@GetMapping("/execution-order")
+    public ResponseEntity<ExecutionOrderResponse> executionOrder() {
+        return new ResponseEntity(taskService.executionOrder(), HttpStatus.OK);
     }
 }
