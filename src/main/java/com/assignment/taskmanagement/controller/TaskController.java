@@ -5,6 +5,8 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ResponseEntity.HeadersBuilder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.assignment.taskmanagement.dto.request.AddDependencyRequest;
 import com.assignment.taskmanagement.dto.request.CreateTaskRequest;
 import com.assignment.taskmanagement.dto.request.UpdateStatusRequest;
+import com.assignment.taskmanagement.dto.response.TaskDependencyResponse;
 import com.assignment.taskmanagement.dto.response.TaskResponse;
 import com.assignment.taskmanagement.service.TaskService;
 
@@ -59,4 +62,15 @@ public class TaskController {
 	public ResponseEntity<TaskResponse> addDependency(@PathVariable("id") UUID taskId, @Valid @RequestBody AddDependencyRequest request){
 		return new ResponseEntity(taskService.addDependency(taskId, request.dependencyId()), HttpStatus.OK);
 	}
+	
+	@GetMapping("/{id}/dependencies")
+	public ResponseEntity<List<TaskDependencyResponse>> getDependencies(@PathVariable("id") UUID id){
+		return new ResponseEntity(taskService.getDependencies(id), HttpStatus.OK);
+	}
+	
+	@DeleteMapping("/{id}/dependencies/{dependsOnId}")
+    public HeadersBuilder<?> removeDependency(@PathVariable UUID id, @PathVariable UUID dependsOnId) {
+		taskService.removeDependency(id, dependsOnId);
+		return ResponseEntity.noContent();
+    }
 }

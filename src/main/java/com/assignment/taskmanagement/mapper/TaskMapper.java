@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 import com.assignment.taskmanagement.domain.Task;
+import com.assignment.taskmanagement.dto.response.TaskDependencyResponse;
 import com.assignment.taskmanagement.dto.response.TaskResponse;
 
 @Component
@@ -25,4 +26,12 @@ public class TaskMapper {
 					dependencyIds
 				);
 	}
+	
+	public TaskDependencyResponse toDependencyResponse(Task task) {
+        return new TaskDependencyResponse(
+                task.getId(),
+                task.getTitle(),
+                task.getStatus()
+        );
+    }
 }

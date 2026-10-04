@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.assignment.taskmanagement.domain.Task;
 import com.assignment.taskmanagement.domain.TaskStatus;
 import com.assignment.taskmanagement.dto.request.CreateTaskRequest;
+import com.assignment.taskmanagement.dto.response.TaskDependencyResponse;
 import com.assignment.taskmanagement.dto.response.TaskResponse;
 import com.assignment.taskmanagement.exception.InvalidDependencyException;
 import com.assignment.taskmanagement.exception.InvalidStatusTransitionException;
@@ -92,6 +93,27 @@ public class TaskService {
 		
 		return mapper.toResponse(savedTask);
 	}
+	
+	
+	public List<TaskDependencyResponse> getDependencies(UUID taskId) {
+		Task task = getTask(taskId);
+		
+		return task.getDependencies().stream().map(mapper::toDependencyResponse).toList();
+	}
+	
+	@Transactional
+    public void removeDependency(UUID taskId, UUID dependsOnId) {
+        Task task = getTask(taskId);
+        if (!deleteDependency(task, dependsOnId)) {
+            throw new InvalidDependencyException("Task %s does not depend on task %s".formatted(taskId, dependsOnId));
+        }
+        taskRepository.save(task);
+    }
+	
+	public boolean deleteDependency(Task task, UUID dependencyId) {
+        return task.getDependencies().removeIf(d -> d.getId().equals(dependencyId));
+    }
+	
 	
 	private Task getTask(UUID id) {
 		return taskRepository.findById(id).orElseThrow(() -> new TaskNotFoundException("Task not found: "+id));
