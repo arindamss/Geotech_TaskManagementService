@@ -18,11 +18,10 @@ import com.assignment.taskmanagement.dto.response.ExecutionOrderResponse;
 import com.assignment.taskmanagement.exception.InvalidDependencyException;
 
 @Service
-final class ExecutionOrderResolver {
+public final class ExecutionOrderResolver {
 
 	public static ExecutionOrderResponse resolve(Collection<Task> tasks){
 		
-
 	    Map<UUID, Task> taskMap = tasks.stream()
 	            .collect(Collectors.toMap(
 	                    Task::getId,
@@ -32,25 +31,11 @@ final class ExecutionOrderResolver {
 	    Map<UUID, Integer> inDegree = new HashMap<>();
 	    Map<UUID, List<UUID>> dependents = new HashMap<>();
 
-	    /*
-	     * Initially every task has an in-degree of 0.
-	     */
 	    for (Task task : tasks) {
 	        inDegree.put(task.getId(), 0);
 	        dependents.put(task.getId(), new ArrayList<>());
 	    }
 
-	    /*
-	     * If:
-	     *
-	     * Task 2 depends on Task 1
-	     *
-	     * graph:
-	     *
-	     * Task 1 ---> Task 2
-	     *
-	     * Therefore Task 2 has in-degree 1.
-	     */
 	    for (Task task : tasks) {
 
 	        for (Task dependency : task.getDependencies()) {
@@ -66,9 +51,6 @@ final class ExecutionOrderResolver {
 	        }
 	    }
 
-	    /*
-	     * Tasks with no dependencies can execute first.
-	     */
 	    Queue<UUID> readyTasks = new ArrayDeque<>();
 
 	    for (Map.Entry<UUID, Integer> entry : inDegree.entrySet()) {
@@ -80,9 +62,6 @@ final class ExecutionOrderResolver {
 
 	    List<UUID> executionOrder = new ArrayList<>();
 
-	    /*
-	     * Kahn's topological sorting algorithm.
-	     */
 	    while (!readyTasks.isEmpty()) {
 
 	    	UUID currentTaskId = readyTasks.poll();
@@ -102,10 +81,6 @@ final class ExecutionOrderResolver {
 	        }
 	    }
 
-	    /*
-	     * If we couldn't process every task,
-	     * there is a circular dependency.
-	     */
 	    if (executionOrder.size() != tasks.size()) {
 	        throw new InvalidDependencyException(
 	                "Cannot determine execution order because circular dependency exists"
