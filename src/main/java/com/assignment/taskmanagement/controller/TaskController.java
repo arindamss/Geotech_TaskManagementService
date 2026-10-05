@@ -70,9 +70,9 @@ public class TaskController {
 	}
 	
 	@DeleteMapping("/{id}/dependencies/{dependsOnId}")
-    public HeadersBuilder<?> removeDependency(@PathVariable UUID id, @PathVariable UUID dependsOnId) {
+    public ResponseEntity<Void> removeDependency(@PathVariable UUID id, @PathVariable UUID dependsOnId) {
 		taskService.removeDependency(id, dependsOnId);
-		return ResponseEntity.noContent();
+		return ResponseEntity.noContent().build();
     }
 	
 	@GetMapping("/execution-order")

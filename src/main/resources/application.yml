@@ -3,4 +3,4 @@ spring:
     name: task-management-service
   profiles:
     active:
-    - local
+      - docker
