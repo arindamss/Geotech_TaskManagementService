@@ -17,4 +17,7 @@ public interface TaskRepository extends JpaRepository<Task, UUID>{
 	        LEFT JOIN FETCH t.dependencies
 	        """)
 	List<Task> findAllWithDependencies();
+	
+	@Query("SELECT t FROM Task t LEFT JOIN FETCH t.dependencies")
+	List<Task> findAllTasks();
 }

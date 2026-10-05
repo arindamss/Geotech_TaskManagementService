@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.assignment.taskmanagement.domain.Task;
 import com.assignment.taskmanagement.domain.TaskStatus;
@@ -17,7 +18,6 @@ import com.assignment.taskmanagement.exception.TaskNotFoundException;
 import com.assignment.taskmanagement.mapper.TaskMapper;
 import com.assignment.taskmanagement.repository.TaskRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -49,13 +49,13 @@ public class TaskService {
 		return mapper.toResponse(savedTask);
 	}
 	
-	
+	@Transactional(readOnly = true)
 	public List<TaskResponse> getAllTasks(){
-		return taskRepository.findAll()
+		return taskRepository.findAllTasks()
 				.stream().map(mapper::toResponse).toList();
 	}
 	
-	
+	@Transactional(readOnly = true)
 	public TaskResponse getTaskById(UUID id) {
 		return mapper.toResponse(getTask(id));
 	}
@@ -95,7 +95,7 @@ public class TaskService {
 		return mapper.toResponse(savedTask);
 	}
 	
-	
+	@Transactional(readOnly = true)
 	public List<TaskDependencyResponse> getDependencies(UUID taskId) {
 		Task task = getTask(taskId);
 		
@@ -111,9 +111,9 @@ public class TaskService {
         taskRepository.save(task);
     }
 	
-	
+	@Transactional(readOnly = true)
 	public ExecutionOrderResponse executionOrder(){
-		List<Task> tasks = taskRepository.findAllWithDependencies();
+		List<Task> tasks = taskRepository.findAllTasks();
 		return ExecutionOrderResolver.resolve(tasks);
 	}
 	

@@ -1,9 +1,9 @@
 # Task Manager Service
 
 A REST service for managing tasks that can depend on one another
-(e.g. *Task B cannot start until Task A is DONE*).
+(e.g. _Task B cannot start until Task A is DONE_).
 
-**Stack:** Java 21 · Spring Boot 3.5 · Spring Data JPA/Hibernate · PostgreSQL · Maven · Docker
+**Stack:** Java 21 · Spring Boot 4.1.1 · Spring Data JPA/Hibernate · PostgreSQL · Maven · Docker
 
 ---
 
@@ -40,40 +40,26 @@ Run the tests (no database needed, they are unit tests):
 mvn test
 ```
 
-Database settings live in `src/main/resources/application.yml` and can be overridden with
+Database settings live in `src/main/resources/application-docker.yml` and can be overridden with
 `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD`.
 
 ---
 
 ## 2. API
 
-Base path: `/api/tasks`. Interactive docs: `/swagger-ui.html` (OpenAPI JSON at `/v3/api-docs`).
+Base path: `/api/tasks`. All task ids are UUIDs.
+Interactive docs: `/swagger-ui.html` (OpenAPI JSON at `/v3/api-docs`).
 
-| Method | Path | Description | Success |
-|--------|------|-------------|---------|
-| `POST` | `/api/tasks` | Create a task | `201` |
-| `GET` | `/api/tasks?status=` | List tasks, optionally filtered by status | `200` |
-| `GET` | `/api/tasks/{id}` | Task details | `200` |
-| `PATCH` | `/api/tasks/{id}/status` | Update task status | `200` |
-| `POST` | `/api/tasks/{id}/dependencies` | Make the task depend on another task | `201` |
-| `DELETE` | `/api/tasks/{id}/dependencies/{dependsOnId}` | Remove a dependency | `204` |
-| `GET` | `/api/tasks/execution-order` | All tasks in a valid execution order | `200` |
-
-### Task representation
-
-```json
-{
-  "id": 3,
-  "title": "Deploy",
-  "description": "Deploy to production",
-  "status": "TODO",
-  "createdAt": "2026-10-02T10:15:30.123Z",
-  "blocked": true,
-  "dependencies": [2]
-}
-```
-
-`blocked` is **derived**, not stored: it is `true` when the task has at least one dependency that is not `DONE`.
+| Method   | Path                                         | Description                          | Success |
+| -------- | -------------------------------------------- | ------------------------------------ | ------- |
+| `POST`   | `/api/tasks`                                 | Create a task                        | `201`   |
+| `GET`    | `/api/tasks`                                 | List all tasks                       | `200`   |
+| `GET`    | `/api/tasks/{id}`                            | Get task details                     | `200`   |
+| `PATCH`  | `/api/tasks/{id}/status`                     | Update task status                   | `200`   |
+| `POST`   | `/api/tasks/{id}/dependencies`               | Make the task depend on another task | `200`   |
+| `GET`    | `/api/tasks/{id}/dependencies`               | List the task's dependencies         | `200`   |
+| `DELETE` | `/api/tasks/{id}/dependencies/{dependsOnId}` | Remove a dependency                  | `204`   |
+| `GET`    | `/api/tasks/execution-order`                 | Valid execution order of all tasks   | `200`   |
 
 ### Request bodies
 
@@ -81,57 +67,87 @@ Base path: `/api/tasks`. Interactive docs: `/swagger-ui.html` (OpenAPI JSON at `
 // POST /api/tasks
 { "title": "Build feature", "description": "optional" }
 
-// PATCH /api/tasks/{id}/status       (TODO | IN_PROGRESS | DONE)
+// PATCH /api/tasks/{id}/status      (TODO | IN_PROGRESS | DONE)
 { "status": "IN_PROGRESS" }
 
-// POST /api/tasks/{id}/dependencies  (this task depends on task 2)
-{ "dependsOnId": 2 }
+// POST /api/tasks/{id}/dependencies (the task in the path depends on dependencyId)
+{ "dependencyId": "3f2b8c1e-7a4d-4b9e-9c55-0d1f6a2e8b10" }
 ```
+
+### Responses
+
+**Task** (`POST /api/tasks`, `GET /api/tasks`, `GET /api/tasks/{id}`, status and dependency updates):
+
+```json
+{
+  "id": "3f2b8c1e-7a4d-4b9e-9c55-0d1f6a2e8b10",
+  "title": "Deploy",
+  "description": "Deploy to production",
+  "status": "TODO",
+  "createdAt": "2026-10-02T10:15:30.123Z",
+  "dependencies": ["a1c4e7f2-...-..."]
+}
+```
+
+**Execution order** (`GET /api/tasks/execution-order`): task ids, each task listed after all tasks it depends on:
+
+```json
+{
+  "executionOrder": ["a1c4e7f2-...-...", "3f2b8c1e-...-..."]
+}
+```
+
+### Business rules enforced by the API
+
+1. A task cannot move to `IN_PROGRESS` or `DONE` while any of its dependencies is not `DONE`.
+2. A task cannot depend on itself, or on a task it already depends on.
+3. A dependency that would create a cycle (direct or indirect) is rejected.
+4. A task is _blocked_ when at least one dependency is not `DONE`.
 
 ### Error responses
 
-Errors use [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) `application/problem+json`:
+Errors are returned as `application/problem+json` (RFC 7807):
 
 ```json
 {
   "type": "about:blank",
   "title": "Conflict",
   "status": 409,
-  "detail": "Task 2 cannot move to IN_PROGRESS: blocked by unfinished tasks [1]"
+  "detail": "Task <id> cannot move to IN_PROGRESS: blocked by unfinished tasks [<id>]"
 }
 ```
 
-| Situation | Status |
-|-----------|--------|
-| Task not found | `404` |
-| Invalid request body / unknown status value / validation failure | `400` (validation includes an `errors` map per field) |
-| Invalid dependency (self-dependency, unknown dependency task, removing a dependency that does not exist) | `400` |
-| Circular dependency attempt | `409` |
-| Starting/completing a blocked task | `409` |
+| Situation                                                                                             | Status |
+| ----------------------------------------------------------------------------------------------------- | ------ |
+| Task (or dependency task) not found                                                                   | `404`  |
+| Validation failure, malformed body, unknown status value, malformed UUID                              | `400`  |
+| Self-dependency, duplicate dependency, circular dependency, removing a dependency that does not exist | `400`  |
+| Moving a blocked task to `IN_PROGRESS` / `DONE`                                                       | `409`  |
 
 ### Example walkthrough
 
 ```bash
-curl -X POST localhost:8080/api/tasks -H 'Content-Type: application/json' -d '{"title":"Design"}'    # id 1
-curl -X POST localhost:8080/api/tasks -H 'Content-Type: application/json' -d '{"title":"Build"}'     # id 2
-curl -X POST localhost:8080/api/tasks -H 'Content-Type: application/json' -d '{"title":"Release"}'   # id 3
+# Create tasks (note the returned ids)
+curl -X POST localhost:8080/api/tasks -H 'Content-Type: application/json' -d '{"title":"Design"}'
+curl -X POST localhost:8080/api/tasks -H 'Content-Type: application/json' -d '{"title":"Build"}'
+curl -X POST localhost:8080/api/tasks -H 'Content-Type: application/json' -d '{"title":"Release"}'
 
 # Build depends on Design; Release depends on Build
-curl -X POST localhost:8080/api/tasks/2/dependencies -H 'Content-Type: application/json' -d '{"dependsOnId":1}'
-curl -X POST localhost:8080/api/tasks/3/dependencies -H 'Content-Type: application/json' -d '{"dependsOnId":2}'
+curl -X POST localhost:8080/api/tasks/$BUILD/dependencies   -H 'Content-Type: application/json' -d "{\"dependencyId\":\"$DESIGN\"}"
+curl -X POST localhost:8080/api/tasks/$RELEASE/dependencies -H 'Content-Type: application/json' -d "{\"dependencyId\":\"$BUILD\"}"
 
-# Rejected: would create a cycle (409)
-curl -X POST localhost:8080/api/tasks/1/dependencies -H 'Content-Type: application/json' -d '{"dependsOnId":3}'
+# Rejected (400): Design -> Release would close a cycle
+curl -X POST localhost:8080/api/tasks/$DESIGN/dependencies -H 'Content-Type: application/json' -d "{\"dependencyId\":\"$RELEASE\"}"
 
-# Rejected: Design is not DONE yet (409)
-curl -X PATCH localhost:8080/api/tasks/2/status -H 'Content-Type: application/json' -d '{"status":"IN_PROGRESS"}'
+# Rejected (409): Design is not DONE yet
+curl -X PATCH localhost:8080/api/tasks/$BUILD/status -H 'Content-Type: application/json' -d '{"status":"IN_PROGRESS"}'
 
 # Finish Design, then Build can start
-curl -X PATCH localhost:8080/api/tasks/1/status -H 'Content-Type: application/json' -d '{"status":"IN_PROGRESS"}'
-curl -X PATCH localhost:8080/api/tasks/1/status -H 'Content-Type: application/json' -d '{"status":"DONE"}'
-curl -X PATCH localhost:8080/api/tasks/2/status -H 'Content-Type: application/json' -d '{"status":"IN_PROGRESS"}'
+curl -X PATCH localhost:8080/api/tasks/$DESIGN/status -H 'Content-Type: application/json' -d '{"status":"IN_PROGRESS"}'
+curl -X PATCH localhost:8080/api/tasks/$DESIGN/status -H 'Content-Type: application/json' -d '{"status":"DONE"}'
+curl -X PATCH localhost:8080/api/tasks/$BUILD/status  -H 'Content-Type: application/json' -d '{"status":"IN_PROGRESS"}'
 
-# Valid execution order: [1, 2, 3]
+# Execution order: Design, Build, Release
 curl localhost:8080/api/tasks/execution-order
 ```
 
@@ -162,18 +178,19 @@ TaskController ──► @Valid on DTO ──(invalid)──► GlobalExceptionH
   ▼
 TaskService  (@Transactional)
   │   • load entities           ──(missing)──► TaskNotFoundException ─────► 404
-  │   • enforce business rules  ──(violated)─► Circular / InvalidStatus ──► 409
+  │   • enforce business rules  ──(violated)─► InvalidStatus ──► 409
   │   • mutate entity state (dirty checking flushes on commit)
   ▼
 TaskRepository ──► Hibernate ──► PostgreSQL
                                    ├── tasks
-                                   └── task_dependencies (task_id, depends_on_id)
+                                   └── task_dependencies (task_id, dependency_id)
   │
   ▼
 TaskResponse DTO ──► JSON
 ```
 
 Example: `PATCH /api/tasks/2/status {"status":"DONE"}`
+
 1. Controller validates the body and calls `TaskService.updateStatus`.
 2. Service loads the task (dependencies are fetched in the same transaction).
 3. If the target status is not `TODO` and any dependency is not `DONE`, it throws `InvalidStatusTransitionException` (409), listing the blocking task ids.
@@ -182,7 +199,7 @@ Example: `PATCH /api/tasks/2/status {"status":"DONE"}`
 ### Data model
 
 `tasks(id, title, description, status, created_at)` and a join table
-`task_dependencies(task_id, depends_on_id)` modelling a directed graph: the edge *task → depends_on* means "task requires depends_on".
+`task_dependencies(task_id, dependency_id)` modelling a directed graph: the edge _task → depends_on_ means "task requires depends_on".
 
 ---
 
@@ -192,12 +209,12 @@ Example: `PATCH /api/tasks/2/status {"status":"DONE"}`
 
 - **Dependencies as a self-referencing `@ManyToMany`.** The graph is small and the join table carries no extra attributes, so a join entity would be needless ceremony.
 - **`blocked` is computed, not persisted.** Storing it would require updating every dependent whenever a task changes status and risks stale data. Computing it on read keeps a single source of truth.
-- **Cycle prevention at write time.** Before adding *A → B* the service runs an iterative DFS from B following its dependencies. If it reaches A, the edge would close a cycle and is rejected with `409`. The graph is therefore always a DAG, which is also what makes the execution order always possible. DFS is iterative to avoid stack overflow on long chains.
+- **Cycle prevention at write time.** Before adding _A → B_ the service runs an iterative DFS from B following its dependencies. If it reaches A, the edge would close a cycle and is rejected with `409`. The graph is therefore always a DAG, which is also what makes the execution order always possible. DFS is iterative to avoid stack overflow on long chains.
 - **Execution order via Kahn's algorithm** (`ExecutionOrderResolver`). Linear in tasks + edges, and ties are broken by id so the output is deterministic. It lives in its own small class so it is easy to test.
 - **Business rules live in the service/domain, not the controller.** The entity exposes `blockingTasks()` / `isBlocked()`; the service decides what to do with them.
 - **DTOs (Java records) at the API boundary.** Entities are never serialised, so the API contract can evolve independently of the schema and lazy-loading issues cannot leak into JSON.
 - **Consistent errors with RFC 7807 `ProblemDetail`** through a single `@RestControllerAdvice`.
-- **N+1 avoidance.** List queries use `@EntityGraph` to fetch dependencies in one query. `spring.jpa.open-in-view` is disabled so DB access stays inside the service transaction.
+- **N+1 avoidance.** Tasks are loaded with their dependencies in a single `JOIN FETCH` query, and `open-in-view` is disabled so lazy loading stays inside service transactions.
 - **Idempotent dependency creation.** Adding a dependency that already exists succeeds without change.
 
 **Assumptions**
